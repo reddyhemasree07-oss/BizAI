@@ -1,1 +1,1 @@
-# Business Co-Founder AI - Memory Layer
+# Business Co-Founder AI - Mode Router
