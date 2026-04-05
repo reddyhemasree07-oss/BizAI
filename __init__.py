@@ -1,1 +1,1 @@
-# Business Co-Founder AI - Agent System
+# Business Co-Founder AI - Business Logic Layer
