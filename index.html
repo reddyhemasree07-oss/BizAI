@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="BizAI — Your AI-powered startup advisor with structured market research, competitor analysis, and actionable business plans.">
+    <title>BizAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="styles.css?v=3">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon"><i class="ph ph-rocket-launch"></i></span>
+            <span class="logo-text">Biz<span class="logo-ai">AI</span></span>
+        </div>
+
+        <!-- Business Mode Toggle -->
+        <div class="mode-toggle-container" id="mode-toggle-container">
+            <div class="mode-label">
+                <i class="ph ph-briefcase"></i>
+                <span>Business Mode</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="business-mode-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="mode-status" id="mode-status">
+            <span class="mode-dot off"></span>
+            <span class="mode-status-text">Search Mode</span>
+        </div>
+
+        <button class="new-chat-btn" id="new-chat-btn">
+            New Chat <i class="ph ph-plus-circle"></i>
+        </button>
+        <div class="history-section">
+            <span class="history-label">Recent</span>
+            <ul class="history-list" id="history-list"></ul>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="search-container" id="search-container">
+                <div class="search-box" id="search-box">
+                    <textarea placeholder="Ask anything..." rows="1" id="search-input"></textarea>
+                    <div class="search-controls">
+                        <div class="controls-left">
+                            <button class="icon-btn" id="upload-btn" title="Upload PDF">
+                                <i class="ph ph-paperclip"></i>
+                                <span class="btn-label">Attach</span>
+                            </button>
+                            <button class="icon-btn" id="web-btn" title="Crawl URL">
+                                <i class="ph ph-globe"></i>
+                                <span class="btn-label">Crawl</span>
+                            </button>
+                            <input type="file" id="file-input" accept="application/pdf" style="display: none;">
+                        </div>
+                        <div class="controls-right">
+                            <button class="icon-btn" id="mic-btn" title="Voice Input">
+                                <i class="ph ph-microphone"></i>
+                            </button>
+                            <button class="submit-btn" id="submit-btn" aria-label="Submit">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="active-docs" class="active-docs" style="display: none;">
+                    <span class="docs-label">Active Documents:</span>
+                    <div id="docs-list" class="docs-list"></div>
+                </div>
+            </div>
+
+            <!-- Auto-detect Business Suggestion Banner -->
+            <div class="biz-suggest-banner" id="biz-suggest-banner" style="display:none;">
+                <div class="biz-suggest-content">
+                    <i class="ph ph-lightbulb"></i>
+                    <span id="biz-suggest-text"></span>
+                </div>
+                <button class="biz-suggest-btn" id="biz-suggest-enable">Enable Business Mode</button>
+                <button class="biz-suggest-dismiss" id="biz-suggest-dismiss"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div id="chat-feed" class="chat-feed"></div>
+
+            <!-- Normal Mode Suggestions -->
+            <div class="suggestions-container" id="suggestions-container">
+                <div class="suggestions-header">
+                    <i class="ph ph-sparkle"></i> Suggested for you
+                </div>
+                <div class="suggestions-body">
+                    <ul class="prompts-list" id="prompts-list">
+                        <li>What are the latest breakthroughs in AI?</li>
+                        <li>Research the top competitors in the EV market</li>
+                        <li>Draft a professional email for a job application</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Business Mode Suggestions -->
+            <div class="suggestions-container biz-suggestions" id="biz-suggestions-container" style="display:none;">
+                <div class="suggestions-header biz-header">
+                    <i class="ph ph-briefcase"></i> BizAI Mode
+                </div>
+                <div class="suggestions-body">
+                    <ul class="prompts-list" id="biz-prompts-list">
+                        <li data-query="I want to start a SaaS for restaurant inventory management">
+                            <i class="ph ph-storefront"></i> Analyze a SaaS idea for restaurant inventory
+                        </li>
+                        <li data-query="Find market opportunities in AI-powered education tools">
+                            <i class="ph ph-magnifying-glass"></i> Find opportunities in AI education
+                        </li>
+                        <li data-query="Create a business plan for a D2C sustainable fashion brand">
+                            <i class="ph ph-t-shirt"></i> Build a plan for sustainable fashion D2C
+                        </li>
+                        <li data-query="Analyze competitors in the no-code website builder space">
+                            <i class="ph ph-sword"></i> Competitor analysis: no-code builders
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ─── Core Elements ──────────────────────────────────────────────
+        const textarea = document.getElementById('search-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const webBtn = document.getElementById('web-btn');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const fileInput = document.getElementById('file-input');
+        const activeDocs = document.getElementById('active-docs');
+        const docsList = document.getElementById('docs-list');
+        const chatFeed = document.getElementById('chat-feed');
+        const suggestionsContainer = document.getElementById('suggestions-container');
+        const bizSuggestionsContainer = document.getElementById('biz-suggestions-container');
+        const micBtn = document.getElementById('mic-btn');
+        const historyList = document.getElementById('history-list');
+        const searchContainer = document.getElementById('search-container');
+        const searchBox = document.getElementById('search-box');
+
+        // Business Mode elements
+        const bizToggle = document.getElementById('business-mode-toggle');
+        const modeStatus = document.getElementById('mode-status');
+        const bizSuggestBanner = document.getElementById('biz-suggest-banner');
+        const bizSuggestText = document.getElementById('biz-suggest-text');
+        const bizSuggestEnable = document.getElementById('biz-suggest-enable');
+        const bizSuggestDismiss = document.getElementById('biz-suggest-dismiss');
+
+        let chatHistory = [];
+        let currentThreadId = null;
+        let allThreads = JSON.parse(localStorage.getItem('perplexity_threads') || '[]');
+        let businessMode = false;
+        
+        // --- Business AI Context ---
+        let businessType = null; // B2B, B2C, F2F
+        let businessStage = null; // idea, growth, scale
+        let isSubscribed = JSON.parse(localStorage.getItem('biz_subscribed') || 'false');
+
+        marked.setOptions({ breaks: true, gfm: true });
+
+        // ─── Business Mode Toggle ───────────────────────────────────────
+        bizToggle.addEventListener('change', () => {
+            businessMode = bizToggle.checked;
+            updateModeUI();
+        });
+
+        function updateModeUI() {
+            const dot = modeStatus.querySelector('.mode-dot');
+            const text = modeStatus.querySelector('.mode-status-text');
+            
+            // Toggle the theme class on the body for overall background/font transitions
+            document.body.classList.toggle('business-mode-active', businessMode);
+            
+            if (businessMode) {
+                dot.className = 'mode-dot on';
+                text.textContent = 'Co-Founder Mode';
+                searchBox.classList.add('biz-active');
+                textarea.placeholder = 'Describe your business idea or question...';
+                suggestionsContainer.style.display = 'none';
+                if (!searchContainer.classList.contains('active')) {
+                    bizSuggestionsContainer.style.display = 'block';
+                }
+            } else {
+                dot.className = 'mode-dot off';
+                text.textContent = 'Search Mode';
+                searchBox.classList.remove('biz-active');
+                textarea.placeholder = 'Ask anything...';
+                bizSuggestionsContainer.style.display = 'none';
+                if (!searchContainer.classList.contains('active')) {
+                    suggestionsContainer.style.display = 'block';
+                }
+            }
+        }
+
+        bizSuggestEnable.onclick = () => {
+            bizToggle.checked = true;
+            businessMode = true;
+            updateModeUI();
+            bizSuggestBanner.style.display = 'none';
+        };
+
+        bizSuggestDismiss.onclick = () => {
+            bizSuggestBanner.style.display = 'none';
+        };
+
+        // ─── History & Threads ──────────────────────────────────────────
+        // --- History & Threads ------------------------------------------
+        function getCleanHistory() {
+            // Strips frontend-only metadata before sending to API
+            return chatHistory.map(item => ({
+                role: item.role,
+                parts: item.parts.map(p => ({ text: p.text }))
+            }));
+        }
+
+        function renderHistorySidebar() {
+            historyList.innerHTML = '';
+            allThreads.forEach(thread => {
+                const li = document.createElement('li');
+                li.className = `history-item ${thread.id === currentThreadId ? 'active' : ''}`;
+                li.textContent = thread.title;
+                li.onclick = () => loadThread(thread.id);
+                historyList.appendChild(li);
+            });
+        }
+
+        function loadThread(id) {
+            const thread = allThreads.find(t => t.id === id);
+            if (!thread) return;
+            currentThreadId = id;
+            chatHistory = JSON.parse(JSON.stringify(thread.history)); // Deep copy to avoid reference issues
+            
+            // Restore business context from thread if available
+            businessType = thread.businessType || null;
+            businessStage = thread.businessStage || null;
+            
+            chatFeed.innerHTML = '';
+            suggestionsContainer.style.display = 'none';
+            bizSuggestionsContainer.style.display = 'none';
+            searchContainer.classList.add('active');
+
+            // Set business mode toggle based on the thread's last state or context if possible
+            // For now, we'll keep it as is, but we'll render cards correctly regardless of mode
+            
+            for (let i = 0; i < chatHistory.length; i += 2) {
+                const user = chatHistory[i];
+                const ai = chatHistory[i+1];
+                if (!user || !ai) continue;
+
+                // Reconstruct User Card
+                const userText = user.parts[0].text;
+                const aiPart = ai.parts[0];
+                
+                // Create Interaction
+                const isBusinessItem = !!aiPart.bizData;
+                const chatCard = document.createElement('div');
+                chatCard.className = `chat-card ${isBusinessItem ? 'biz-chat-card' : ''}`;
+                
+                const questionIcon = isBusinessItem ? '<i class="ph ph-briefcase"></i> ' : '';
+                chatCard.innerHTML = `
+                    <div class="question-row">${questionIcon}${userText}</div>
+                    <div class="answer-row ${isBusinessItem ? 'biz-answer' : 'markdown-body'}"></div>
+                `;
+                chatFeed.prepend(chatCard);
+                const answerContainer = chatCard.querySelector('.answer-row');
+
+                if (isBusinessItem) {
+                    renderBusinessOutput(answerContainer, aiPart.bizData);
+                } else {
+                    let text = aiPart.text;
+                    const sources = aiPart.sources || [];
+                    
+                    if (sources.length > 0) {
+                        renderSourcesUI(chatCard, sources);
+                    }
+                    
+                    let renderedMarkdown = marked.parse(text);
+                    if (sources.length > 0) {
+                        renderedMarkdown = renderedMarkdown.replace(/\[\s*(\d+)\s*\]/g, (match, n) => {
+                            const source = sources.find(s => s.number == n);
+                            if (source && source.source) {
+                                return `<a href="${source.source}" target="_blank" class="citation-badge" title="${source.title}">${n}</a>`;
+                            }
+                            return `<span class="citation-badge">${n}</span>`;
+                        });
+                    }
+                    answerContainer.innerHTML = renderedMarkdown;
+
+                    if (sources.length > 0) {
+                        const footer = document.createElement('div');
+                        footer.className = 'sources-footer';
+                        footer.innerHTML = `<div class="footer-title"><i class="ph ph-books"></i> Verified Research Sources</div>
+                            <div class="footer-grid">${sources.map(s => `
+                                <a href="${s.source}" target="_blank" class="footer-source-item">
+                                    <span class="source-index">${s.number}</span>
+                                    <img src="https://www.google.com/s2/favicons?domain=${s.domain}&sz=32" class="footer-favicon" alt="" onerror="this.style.display='none'">
+                                    <div class="footer-source-info">
+                                        <span class="footer-source-title">${s.title}</span>
+                                        <span class="footer-source-url">${s.source}</span>
+                                    </div>
+                                </a>`).join('')}</div>`;
+                        answerContainer.appendChild(footer);
+                    }
+                }
+            }
+            renderHistorySidebar();
+            chatFeed.scrollTop = 0;
+        }
+
+        function saveThread() {
+            if (!currentThreadId && chatHistory.length > 0) {
+                currentThreadId = Date.now();
+                const title = chatHistory[0].parts[0].text.substring(0, 30) + "...";
+                allThreads.unshift({ 
+                    id: currentThreadId, 
+                    title, 
+                    history: chatHistory,
+                    businessType,
+                    businessStage
+                });
+            } else if (currentThreadId) {
+                const thread = allThreads.find(t => t.id === currentThreadId);
+                if (thread) {
+                    thread.history = chatHistory;
+                    thread.businessType = businessType;
+                    thread.businessStage = businessStage;
+                }
+            }
+            localStorage.setItem('perplexity_threads', JSON.stringify(allThreads));
+            renderHistorySidebar();
+        }
+
+        newChatBtn.onclick = () => {
+            currentThreadId = null; chatHistory = []; chatFeed.innerHTML = '';
+            businessType = null; businessStage = null;
+            searchContainer.classList.remove('active');
+            bizSuggestBanner.style.display = 'none';
+            updateModeUI();
+            renderHistorySidebar();
+        };
+
+        // ─── Chat Card Creation ─────────────────────────────────────────
+        function addInteractionCardToFeed(userText, aiText, isReady = false) {
+            const chatCard = document.createElement('div');
+            chatCard.className = 'chat-card';
+            chatCard.innerHTML = `<div class="question-row">${userText}</div><div class="answer-row markdown-body">${isReady ? marked.parse(aiText) : '<span class="thinking">Thinking...</span>'}</div>`;
+            chatFeed.prepend(chatCard);
+            chatFeed.scrollTop = 0;
+            return chatCard.querySelector('.answer-row');
+        }
+
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // ─── File Upload ────────────────────────────────────────────────
+        uploadBtn.onclick = () => fileInput.click();
+
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const docTag = document.createElement('div');
+            docTag.className = 'doc-tag processing';
+            docTag.innerHTML = `<i class="ph ph-file-pdf"></i> ${file.name} (Processing...)`;
+            docsList.appendChild(docTag);
+            activeDocs.style.display = 'flex';
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || "Upload failed");
+                docTag.classList.remove('processing');
+                docTag.innerHTML = `<i class="ph ph-file-pdf"></i> ${file.name} <i class="ph ph-check-circle" style="color:#10B981"></i>`;
+            } catch (err) {
+                docTag.style.color = "#991B1B";
+                docTag.innerHTML = `<i class="ph ph-x-circle"></i> ${file.name}: ${err.message}`;
+                setTimeout(() => docTag.remove(), 8000);
+            }
+        };
+
+        // ─── URL Crawl ─────────────────────────────────────────────────
+        webBtn.onclick = async () => {
+            const url = prompt("Enter URL to crawl:");
+            if (!url) return;
+            const docTag = document.createElement('div');
+            docTag.className = 'doc-tag processing';
+            docTag.innerHTML = `<i class="ph ph-globe"></i> ${url} (Crawling...)`;
+            docsList.appendChild(docTag);
+            activeDocs.style.display = 'flex';
+            try {
+                const res = await fetch('/api/crawl', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                if (!res.ok) throw new Error("Crawl failed");
+                docTag.classList.remove('processing');
+                docTag.innerHTML = `<i class="ph ph-globe"></i> ${url} <i class="ph ph-check-circle" style="color:#10B981"></i>`;
+            } catch (err) {
+                docTag.remove();
+                alert(err.message);
+            }
+        };
+
+        // ─── Voice Input ────────────────────────────────────────────────
+        let isListening = false;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.onstart = () => { isListening = true; micBtn.style.color = "#EF4444"; micBtn.classList.add('pulse-mic'); textarea.placeholder = "Listening..."; };
+            recognition.onresult = (event) => { textarea.value = event.results[0][0].transcript; textarea.style.height = 'auto'; textarea.style.height = (textarea.scrollHeight) + 'px'; };
+            recognition.onend = () => { isListening = false; micBtn.style.color = ""; micBtn.classList.remove('pulse-mic'); textarea.placeholder = businessMode ? "Describe your business idea..." : "Ask anything..."; };
+            micBtn.onclick = () => { if (isListening) recognition.stop(); else recognition.start(); };
+        } else {
+            micBtn.onclick = () => alert("Speech recognition not supported.");
+        }
+
+        // ─── Business Mode Output Renderer ──────────────────────────────
+        function renderBusinessOutput(container, data) {
+            container.innerHTML = '';
+            
+            // Stage & Intent Badge
+            const badges = document.createElement('div');
+            badges.className = 'biz-badges';
+            badges.innerHTML = `
+                <span class="biz-badge stage-badge stage-${data.stage || 'idea'}">${(data.stage || 'idea').toUpperCase()} Stage</span>
+                <span class="biz-badge intent-badge">${(data.intent || 'explore_idea').replace(/_/g, ' ')}</span>
+                <span class="biz-badge confidence-badge conf-${data.confidence || 'medium'}">${(data.confidence || 'medium').toUpperCase()} Confidence</span>
+            `;
+            container.appendChild(badges);
+
+            // Summary
+            if (data.summary) {
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'biz-summary';
+                summaryDiv.innerHTML = `<h3><i class="ph ph-article"></i> Executive Summary</h3><p>${data.summary}</p>`;
+                container.appendChild(summaryDiv);
+            }
+
+            // Ideas Cards
+            if (data.ideas && data.ideas.length > 0) {
+                const ideasSection = document.createElement('div');
+                ideasSection.className = 'biz-section';
+                ideasSection.innerHTML = `<h3><i class="ph ph-lightbulb"></i> Business Ideas (Ranked)</h3>`;
+                
+                data.ideas.forEach((idea, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'biz-idea-card';
+                    const score = idea.scores?.composite || 0;
+                    const scoreClass = score >= 7 ? 'high' : score >= 5 ? 'mid' : 'low';
+                    
+                    card.innerHTML = `
+                        <div class="idea-header">
+                            <span class="idea-rank">#${idx + 1}</span>
+                            <h4 class="idea-title">${idea.idea_title || 'Untitled Idea'}</h4>
+                            <span class="idea-score score-${scoreClass}">${score.toFixed(1)}</span>
+                        </div>
+                        <div class="idea-grid">
+                            <div class="idea-field">
+                                <span class="field-label"><i class="ph ph-warning-circle"></i> Problem</span>
+                                <p>${idea.problem || 'N/A'}</p>
+                            </div>
+                            <div class="idea-field">
+                                <span class="field-label"><i class="ph ph-users"></i> Target Customer</span>
+                                <p>${idea.target_customer || 'N/A'}</p>
+                            </div>
+                            <div class="idea-field">
+                                <span class="field-label"><i class="ph ph-puzzle-piece"></i> Solution</span>
+                                <p>${idea.solution || 'N/A'}</p>
+                            </div>
+                            <div class="idea-field">
+                                <span class="field-label"><i class="ph ph-currency-dollar"></i> Revenue Model</span>
+                                <p>${idea.revenue_model || 'N/A'}</p>
+                            </div>
+                            <div class="idea-field full-width">
+                                <span class="field-label"><i class="ph ph-warning"></i> Key Risk</span>
+                                <p>${idea.key_risk || 'N/A'}</p>
+                            </div>
+                            <div class="idea-field full-width action-field">
+                                <span class="field-label"><i class="ph ph-calendar-check"></i> This Week's Action</span>
+                                <p>${idea.first_action_this_week || 'N/A'}</p>
+                            </div>
+                        </div>
+                        ${idea.scores ? renderScoreBar(idea.scores) : ''}
+                    `;
+                    ideasSection.appendChild(card);
+                });
+                container.appendChild(ideasSection);
+            }
+
+            // Market Analysis with Chart
+            if (data.market_analysis && data.market_analysis.market_size) {
+                const mktSection = document.createElement('div');
+                mktSection.className = 'biz-section';
+                const ms = data.market_analysis.market_size;
+                mktSection.innerHTML = `
+                    <h3><i class="ph ph-chart-bar"></i> Market Size Analysis</h3>
+                    <div class="market-cards">
+                        <div class="market-card tam"><div class="mkt-label">TAM</div><div class="mkt-value">${ms.tam || 'N/A'}</div></div>
+                        <div class="market-card sam"><div class="mkt-label">SAM</div><div class="mkt-value">${ms.sam || 'N/A'}</div></div>
+                        <div class="market-card som"><div class="mkt-label">SOM</div><div class="mkt-value">${ms.som || 'N/A'}</div></div>
+                    </div>
+                    <canvas class="market-chart biz-chart"></canvas>
+                    ${ms.assumptions ? `<div class="assumptions"><strong>Assumptions:</strong><ul>${ms.assumptions.map(a => `<li>${a}</li>`).join('')}</ul></div>` : ''}
+                `;
+                container.appendChild(mktSection);
+
+                // Render Chart.js bar chart
+                setTimeout(() => {
+                    const ctx = container.querySelector('.market-chart');
+                    if (ctx) {
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['TAM', 'SAM', 'SOM'],
+                                datasets: [{
+                                    label: 'Market Size ($M)',
+                                    data: [ms.tam_value || 0, ms.sam_value || 0, ms.som_value || 0],
+                                    backgroundColor: ['rgba(99, 102, 241, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(236, 72, 153, 0.8)'],
+                                    borderRadius: 8,
+                                    borderSkipped: false
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: { callbacks: { label: (c) => `$${c.raw.toLocaleString()}M` } }
+                                },
+                                scales: {
+                                    y: { beginAtZero: true, ticks: { callback: v => `$${v}M` } },
+                                    x: { grid: { display: false } }
+                                }
+                            }
+                        });
+                    }
+                }, 100);
+            }
+
+            // Revenue Projection Line Chart
+            if (data.market_analysis && data.market_analysis.revenue_estimate) {
+                const revSection = document.createElement('div');
+                revSection.className = 'biz-section';
+                const rev = data.market_analysis.revenue_estimate;
+                revSection.innerHTML = `
+                    <h3><i class="ph ph-trend-up"></i> Revenue Projection</h3>
+                    <div class="rev-summary">
+                        <div class="rev-card"><span class="rev-label">Year 1</span><span class="rev-value">${rev.annual_potential || 'N/A'}</span></div>
+                        <div class="rev-card"><span class="rev-label">Year 2</span><span class="rev-value">${rev.year_2_potential || 'N/A'}</span></div>
+                        <div class="rev-card"><span class="rev-label">Year 3</span><span class="rev-value">${rev.year_3_potential || 'N/A'}</span></div>
+                    </div>
+                    <canvas class="revenue-chart biz-chart"></canvas>
+                    <div class="chart-disclaimer"><i class="ph ph-info"></i> Projections are estimates based on assumptions. Actual results may vary.</div>
+                `;
+                container.appendChild(revSection);
+
+                // Render Line Chart
+                setTimeout(() => {
+                    const ctx2 = container.querySelector('.revenue-chart');
+                    if (ctx2) {
+                        const y1 = parseFloat(String(rev.annual_potential || '0').replace(/[^0-9.]/g, '')) || 5000;
+                        const y2 = parseFloat(String(rev.year_2_potential || '0').replace(/[^0-9.]/g, '')) || y1 * 1.5;
+                        const y3 = parseFloat(String(rev.year_3_potential || '0').replace(/[^0-9.]/g, '')) || y2 * 1.4;
+                        new Chart(ctx2, {
+                            type: 'line',
+                            data: {
+                                labels: ['Year 1', 'Year 2', 'Year 3'],
+                                datasets: [{
+                                    label: 'Projected Revenue ($)',
+                                    data: [y1, y2, y3],
+                                    borderColor: '#6366F1',
+                                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointBackgroundColor: '#6366F1',
+                                    pointRadius: 6,
+                                    pointHoverRadius: 9,
+                                    borderWidth: 3
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { display: true, position: 'top', labels: { color: '#4B5563', font: { size: 12 } } },
+                                    tooltip: { callbacks: { label: (c) => `$${c.raw.toLocaleString()}` } }
+                                },
+                                scales: {
+                                    y: { beginAtZero: true, ticks: { callback: v => `$${v.toLocaleString()}` }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                                    x: { grid: { display: false } }
+                                }
+                            }
+                        });
+                    }
+                }, 200);
+            }
+
+            // Market Demand Trend (Doughnut)
+            if (data.analysis && data.analysis.market_maturity) {
+                const demandSection = document.createElement('div');
+                demandSection.className = 'biz-section';
+                demandSection.innerHTML = `
+                    <h3><i class="ph ph-chart-pie-slice"></i> Market Demand Overview</h3>
+                    <div class="demand-grid">
+                        <div class="demand-chart-box"><canvas class="demand-doughnut biz-chart"></canvas></div>
+                        <div class="demand-info">
+                            <div class="demand-stat"><span class="demand-label">Market Maturity</span><span class="demand-value maturity-${data.analysis.market_maturity}">${(data.analysis.market_maturity || 'unknown').toUpperCase()}</span></div>
+                            <div class="demand-stat"><span class="demand-label">Opportunities</span><span class="demand-value">${(data.analysis.key_opportunities || []).length}</span></div>
+                            <div class="demand-stat"><span class="demand-label">Threats</span><span class="demand-value">${(data.analysis.key_threats || []).length}</span></div>
+                            ${(data.analysis.key_opportunities || []).map(o => `<div class="opp-tag"><i class="ph ph-check-circle"></i> ${o}</div>`).join('')}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(demandSection);
+
+                setTimeout(() => {
+                    const ctx3 = container.querySelector('.demand-doughnut');
+                    if (ctx3) {
+                        const opps = (data.analysis.key_opportunities || []).length || 1;
+                        const threats = (data.analysis.key_threats || []).length || 1;
+                        const segments = (data.analysis.customer_segments || []).length || 1;
+                        new Chart(ctx3, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Opportunities', 'Threats', 'Segments'],
+                                datasets: [{
+                                    data: [opps, threats, segments],
+                                    backgroundColor: ['#10B981', '#EF4444', '#6366F1'],
+                                    borderWidth: 0,
+                                    hoverOffset: 8
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                cutout: '65%',
+                                plugins: {
+                                    legend: { position: 'bottom', labels: { padding: 16, color: '#4B5563' } }
+                                }
+                            }
+                        });
+                    }
+                }, 300);
+            }
+
+            // Competitors Table
+            if (data.competitors && data.competitors.length > 0) {
+                const compSection = document.createElement('div');
+                compSection.className = 'biz-section';
+                compSection.innerHTML = `
+                    <h3><i class="ph ph-sword"></i> Competitor Landscape</h3>
+                    <div class="comp-table-wrap">
+                        <table class="comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Competitor</th>
+                                    <th>Description</th>
+                                    <th>Strength</th>
+                                    <th>Weakness</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.competitors.map(c => `
+                                    <tr>
+                                        <td class="comp-name">${c.name || 'Unknown'}</td>
+                                        <td>${c.description || 'N/A'}</td>
+                                        <td class="comp-strength">${c.strength || 'N/A'}</td>
+                                        <td class="comp-weakness">${c.weakness || 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                container.appendChild(compSection);
+            }
+
+            // Risk Assessment
+            if (data.risk_assessment && data.risk_assessment.categories) {
+                const riskSection = document.createElement('div');
+                riskSection.className = 'biz-section';
+                const ra = data.risk_assessment;
+                riskSection.innerHTML = `
+                    <h3><i class="ph ph-shield-warning"></i> Risk Assessment 
+                        <span class="risk-aggregate">${ra.aggregate_score?.toFixed(1) || 'N/A'}/10</span>
+                    </h3>
+                    <div class="risk-grid">
+                        ${ra.categories.map(cat => {
+                            const riskLevel = cat.score >= 7 ? 'high' : cat.score >= 4 ? 'mid' : 'low';
+                            return `
+                            <div class="risk-item">
+                                <div class="risk-header-row">
+                                    <span class="risk-name">${cat.category}</span>
+                                    <span class="risk-score risk-${riskLevel}">${cat.score}/10</span>
+                                </div>
+                                <div class="risk-bar-bg"><div class="risk-bar-fill risk-${riskLevel}" style="width:${cat.score * 10}%"></div></div>
+                                <p class="risk-mitigation">${cat.mitigation || ''}</p>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                `;
+                container.appendChild(riskSection);
+            }
+
+            // This Week Actions
+            if (data.this_week_actions && data.this_week_actions.length > 0) {
+                const actionsSection = document.createElement('div');
+                actionsSection.className = 'biz-section actions-section';
+                actionsSection.innerHTML = `
+                    <h3><i class="ph ph-calendar-check"></i> This Week's Actions</h3>
+                    <div class="action-list">
+                        ${data.this_week_actions.map((a, i) => `
+                            <div class="action-item">
+                                <span class="action-num">${i + 1}</span>
+                                <span class="action-text">${a}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(actionsSection);
+            }
+
+            // Follow-up Suggestions
+            if (data.follow_ups && data.follow_ups.length > 0) {
+                const followSection = document.createElement('div');
+                followSection.className = 'biz-section followup-section';
+                followSection.innerHTML = `
+                    <h3><i class="ph ph-chat-dots"></i> Follow-up Questions</h3>
+                    <div class="followup-list">
+                        ${data.follow_ups.map(q => `
+                            <button class="followup-btn" onclick="submitFollowUp(this)">${q}</button>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(followSection);
+            }
+
+            // Sources
+            if (data.sources && data.sources.length > 0) {
+                const srcSection = document.createElement('div');
+                srcSection.className = 'biz-section';
+                srcSection.innerHTML = `
+                    <h3><i class="ph ph-books"></i> Research Sources (${data.sources.length})</h3>
+                    <div class="sources-grid">
+                        ${data.sources.slice(0, 6).map(s => `
+                            <a href="${s.source}" target="_blank" class="source-card" title="${s.source}">
+                                <div class="source-card-content">
+                                    <div class="source-meta">
+                                        <img src="https://www.google.com/s2/favicons?domain=${s.domain}&sz=32" class="source-favicon" alt="" onerror="this.style.display='none'">
+                                        <span class="source-domain">${s.domain}</span>
+                                        <span class="source-num">${s.number}</span>
+                                    </div>
+                                    <div class="source-title">${s.title}</div>
+                                </div>
+                            </a>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(srcSection);
+            }
+        }
+
+        function renderScoreBar(scores) {
+            const factors = [
+                { key: 'feasibility', label: 'Feasibility', color: '#6366F1' },
+                { key: 'market_size', label: 'Market', color: '#8B5CF6' },
+                { key: 'competition_gap', label: 'Comp. Gap', color: '#EC4899' },
+                { key: 'time_to_revenue', label: 'Time to Rev', color: '#F59E0B' },
+                { key: 'scalability', label: 'Scale', color: '#10B981' },
+                { key: 'founder_fit', label: 'Fit', color: '#3B82F6' },
+            ];
+            return `
+                <div class="score-breakdown">
+                    ${factors.map(f => `
+                        <div class="score-factor">
+                            <span class="factor-label">${f.label}</span>
+                            <div class="factor-bar-bg">
+                                <div class="factor-bar-fill" style="width:${(scores[f.key] || 5) * 10}%; background:${f.color}"></div>
+                            </div>
+                            <span class="factor-val">${scores[f.key] || 5}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function submitFollowUp(btn) {
+            textarea.value = btn.textContent;
+            submitPrompt();
+        }
+
+        // ─── Submit Logic ───────────────────────────────────────────────
+        async function submitPrompt() {
+            const promptStr = textarea.value.trim();
+            if (!promptStr) return;
+
+            console.log("[Submit] BusinessMode:", businessMode, "Type:", businessType, "Stage:", businessStage);
+
+            if (businessMode && (!businessType || !businessStage)) {
+                console.log("[Submit] Triggering Onboarding...");
+                await startBusinessOnboarding(promptStr);
+                return;
+            }
+
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            suggestionsContainer.style.display = 'none';
+            bizSuggestionsContainer.style.display = 'none';
+            bizSuggestBanner.style.display = 'none';
+            searchContainer.classList.add('active');
+
+            if (businessMode) {
+                // Tier Gate Check
+                if ((businessStage === 'growth' || businessStage === 'scale') && !isSubscribed) {
+                    showUpgradeRequired(businessStage);
+                    return;
+                }
+                await submitBusinessPrompt(promptStr);
+            } else {
+                await submitNormalPrompt(promptStr);
+            }
+        }
+
+        // ─── Business Onboarding Flow ───────────────────────────────────
+        async function startBusinessOnboarding(initialQuery) {
+            textarea.value = '';
+            searchContainer.classList.add('active');
+            suggestionsContainer.style.display = 'none';
+            bizSuggestionsContainer.style.display = 'none';
+
+            const card = document.createElement('div');
+            card.className = 'chat-card onboarding-card';
+            card.innerHTML = `
+                <div class="question-row"><i class="ph ph-rocket-launch"></i> Welcome to BizAI</div>
+                <div class="answer-row">
+                    <p>I'm ready to help with <strong>"${initialQuery}"</strong>, but first I need a bit more context to provide accurate, data-backed analysis.</p>
+                    
+                    <div class="onboarding-step" id="type-step">
+                        <h3>1. What type of business is this?</h3>
+                        <div class="onboarding-options">
+                            <button class="opt-btn" onclick="selectBizParam('type', 'B2B')">
+                                <i class="ph ph-buildings"></i> <strong>B2B</strong><span>Business to Business</span>
+                            </button>
+                            <button class="opt-btn" onclick="selectBizParam('type', 'B2C')">
+                                <i class="ph ph-shopping-bag"></i> <strong>B2C</strong><span>Business to Consumer</span>
+                            </button>
+                            <button class="opt-btn" onclick="selectBizParam('type', 'F2F')">
+                                <i class="ph ph-storefront"></i> <strong>F2F</strong><span>Local / Offline</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="onboarding-step" id="stage-step" style="display:none;">
+                        <h3>2. What stage are you in?</h3>
+                        <div class="onboarding-options">
+                            <button class="opt-btn" onclick="selectBizParam('stage', 'idea')">
+                                <i class="ph ph-lightbulb"></i> <strong>Idea</strong><span>Free Tier</span>
+                            </button>
+                            <button class="opt-btn" onclick="selectBizParam('stage', 'growth')">
+                                <i class="ph ph-chart-line-up"></i> <strong>Growth</strong><span>Paid Tier</span>
+                            </button>
+                            <button class="opt-btn" onclick="selectBizParam('stage', 'scale')">
+                                <i class="ph ph-trend-up"></i> <strong>Scale</strong><span>Premium Tier</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatFeed.prepend(card);
+            
+            // Temporary global function for simplicity in cards
+            window.selectBizParam = (param, value) => {
+                if (param === 'type') {
+                    businessType = value;
+                    document.getElementById('type-step').style.opacity = '0.5';
+                    document.getElementById('type-step').style.pointerEvents = 'none';
+                    document.getElementById('stage-step').style.display = 'block';
+                } else if (param === 'stage') {
+                    businessStage = value;
+                    card.remove();
+                    submitBusinessPrompt(initialQuery);
+                }
+            };
+        }
+
+        function showUpgradeRequired(stage) {
+            const card = document.createElement('div');
+            card.className = 'chat-card upgrade-card';
+            card.innerHTML = `
+                <div class="question-row"><i class="ph ph-lock"></i> ${stage.toUpperCase()} Stage Locked</div>
+                <div class="answer-row">
+                    <div class="upgrade-preview">
+                        <div class="preview-item"><i class="ph ph-check-circle"></i> Competitor Comparison (Pricing & Positioning)</div>
+                        <div class="preview-item"><i class="ph ph-check-circle"></i> Revenue Estimation & Conversion Analysis</div>
+                        <div class="preview-item"><i class="ph ph-check-circle"></i> 90-Day Channel-based Growth Plan</div>
+                        <div class="preview-item locked"><i class="ph ph-lock"></i> Deep Competitor Intelligence (Premium only)</div>
+                    </div>
+                    <p>The <strong>${stage} stage</strong> requires a paid subscription to access high-level intelligence and multi-agent deep research.</p>
+                    <button class="upgrade-btn" onclick="upgradeSubscription()">Upgrade to Full Access</button>
+                    <button class="secondary-btn" onclick="resetToIdeaStage()">Stay on Idea Stage (Free)</button>
+                </div>
+            `;
+            chatFeed.prepend(card);
+            
+            window.upgradeSubscription = () => {
+                isSubscribed = true;
+                localStorage.setItem('biz_subscribed', 'true');
+                card.remove();
+                alert("Successfully upgraded! Your analysis is continuing...");
+                const lastQuery = chatHistory.length > 0 ? chatHistory[chatHistory.length-1].parts[0].text : textarea.value;
+                submitPrompt();
+            };
+            
+            window.resetToIdeaStage = () => {
+                businessStage = 'idea';
+                card.remove();
+                submitPrompt();
+            };
+        }
+
+        // ─── Business Mode Submit ───────────────────────────────────────
+        async function submitBusinessPrompt(promptStr) {
+            const chatCard = document.createElement('div');
+            chatCard.className = 'chat-card biz-chat-card';
+            chatCard.innerHTML = `
+                <div class="question-row"><i class="ph ph-briefcase"></i> ${promptStr}</div>
+                <div class="answer-row biz-answer">
+                    <div class="biz-loading">
+                        <div class="biz-loading-spinner"></div>
+                        <div class="biz-loading-text">
+                            <strong>BizAI is analyzing...</strong>
+                            <div class="biz-loading-steps">
+                                <span class="step active" id="step-1"><i class="ph ph-brain"></i> Detecting intent</span>
+                                <span class="step" id="step-2"><i class="ph ph-magnifying-glass"></i> Researching market</span>
+                                <span class="step" id="step-3"><i class="ph ph-chart-line-up"></i> Analyzing data</span>
+                                <span class="step" id="step-4"><i class="ph ph-lightbulb"></i> Generating ideas</span>
+                                <span class="step" id="step-5"><i class="ph ph-strategy"></i> Building plan</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatFeed.prepend(chatCard);
+
+            // Animate loading steps
+            const steps = chatCard.querySelectorAll('.biz-loading-steps .step');
+            let stepIndex = 0;
+            const stepInterval = setInterval(() => {
+                if (stepIndex < steps.length) {
+                    steps[stepIndex].classList.add('active');
+                    if (stepIndex > 0) steps[stepIndex - 1].classList.add('done');
+                    stepIndex++;
+                }
+            }, 3000);
+
+            try {
+                const res = await fetch('/api/business/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: promptStr, 
+                        business_mode: true,
+                        business_type: businessType,
+                        stage: businessStage,
+                        is_premium: isSubscribed
+                    })
+                });
+
+                clearInterval(stepInterval);
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Analysis failed');
+                }
+
+                const data = await res.json();
+                const answerContainer = chatCard.querySelector('.answer-row');
+                renderBusinessOutput(answerContainer, data);
+
+                chatHistory.push({ role: 'user', parts: [{ text: promptStr }] });
+                chatHistory.push({ 
+                    role: 'model', 
+                    parts: [{ 
+                        text: data.summary || '', 
+                        bizData: data 
+                    }] 
+                });
+                saveThread();
+
+            } catch (err) {
+                clearInterval(stepInterval);
+                const answerContainer = chatCard.querySelector('.answer-row');
+                answerContainer.innerHTML = `
+                    <div class="error-box">
+                        <strong><i class="ph ph-warning-circle"></i> Analysis Failed</strong>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ─── Normal Mode Submit (preserved) ─────────────────────────────
+        async function submitNormalPrompt(promptStr) {
+            const answerContainer = addInteractionCardToFeed(promptStr, "");
+            answerContainer.innerHTML = `
+                <div class="loading-state">
+                    <i class="ph ph-sparkle ph-spin"></i>
+                    <span>Initializing deep research...</span>
+                </div>`;
+
+            let fullResponse = "";
+            let currentSources = [];
+            let buffer = "";
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptStr, history: getCleanHistory(), business_mode: false })
+                });
+
+                if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                answerContainer.innerHTML = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (value) {
+                        buffer += decoder.decode(value, { stream: true });
+                        let lines = buffer.split("\n");
+
+                        for (let i = 0; i < lines.length - 1; i++) {
+                            const line = lines[i];
+                            if (line.startsWith("SOURCES_LIST:")) {
+                                try {
+                                    currentSources = JSON.parse(line.replace("SOURCES_LIST:", ""));
+                                    renderSourcesUI(answerContainer.parentElement, currentSources);
+                                } catch (e) { console.error("Source parse error", e); }
+                            } else if (line.startsWith("AI_ERROR:")) {
+                                try {
+                                    const errData = JSON.parse(line.replace("AI_ERROR:", ""));
+                                    answerContainer.innerHTML = `<div class="error-box"><strong><i class="ph ph-warning-circle"></i> Service Unavailable</strong><p>${errData.error}</p></div>`;
+                                    return;
+                                } catch (e) { }
+                            } else if (line.startsWith("BIZ_SUGGEST:")) {
+                                try {
+                                    const suggestion = JSON.parse(line.replace("BIZ_SUGGEST:", ""));
+                                    if (suggestion.suggestion && !businessMode) {
+                                        bizSuggestText.textContent = suggestion.suggestion;
+                                        bizSuggestBanner.style.display = 'flex';
+                                    }
+                                } catch (e) { }
+                            }
+                        }
+
+                        let textToRender = "";
+                        buffer.split("\n").forEach(l => {
+                            if (!l.startsWith("SOURCES_LIST:") && !l.startsWith("AI_ERROR:") && !l.startsWith("BIZ_SUGGEST:")) {
+                                textToRender += l + "\n";
+                            }
+                        });
+
+                        if (textToRender.trim()) {
+                            fullResponse = textToRender;
+                            let renderedMarkdown = marked.parse(textToRender);
+                            renderedMarkdown = renderedMarkdown.replace(/\[\s*(\d+)\s*\]/g, (match, n) => {
+                                const source = currentSources.find(s => s.number == n);
+                                if (source && source.source) {
+                                    return `<a href="${source.source}" target="_blank" class="citation-badge" title="${source.title}">${n}</a>`;
+                                }
+                                return `<span class="citation-badge">${n}</span>`;
+                            });
+                            answerContainer.innerHTML = renderedMarkdown;
+                        }
+                    }
+                    if (done) break;
+                }
+
+                if (currentSources.length > 0) {
+                    const footer = document.createElement('div');
+                    footer.className = 'sources-footer';
+                    footer.innerHTML = `<div class="footer-title"><i class="ph ph-books"></i> Verified Research Sources</div>
+                        <div class="footer-grid">${currentSources.map(s => `
+                            <a href="${s.source}" target="_blank" class="footer-source-item">
+                                <span class="source-index">${s.number}</span>
+                                <img src="https://www.google.com/s2/favicons?domain=${s.domain}&sz=32" class="footer-favicon" alt="" onerror="this.style.display='none'">
+                                <div class="footer-source-info">
+                                    <span class="footer-source-title">${s.title}</span>
+                                    <span class="footer-source-url">${s.source}</span>
+                                </div>
+                            </a>`).join('')}</div>`;
+                    answerContainer.appendChild(footer);
+                }
+
+                chatHistory.push({ role: 'user', parts: [{ text: promptStr }] });
+                chatHistory.push({ 
+                    role: 'model', 
+                    parts: [{ 
+                        text: fullResponse, 
+                        sources: currentSources 
+                    }] 
+                });
+                saveThread();
+            } catch (err) {
+                answerContainer.innerHTML = `<div class="error-box"><strong><i class="ph ph-globe-x"></i> Connection Error</strong><p>${err.message}</p></div>`;
+            }
+        }
+
+        // ─── Sources UI (Normal Mode) ───────────────────────────────────
+        function renderSourcesUI(card, sources) {
+            if (!sources || sources.length === 0) return;
+            const existingGrid = card.querySelector('.sources-grid-container');
+            if (existingGrid) existingGrid.remove();
+
+            const container = document.createElement('div');
+            container.className = 'sources-grid-container';
+            container.innerHTML = `<div class="sources-header"><i class="ph ph-link"></i> ${sources.length} Sources Found</div>`;
+
+            const grid = document.createElement('div');
+            grid.className = 'sources-grid';
+
+            sources.forEach((s, index) => {
+                const sourceCard = document.createElement('a');
+                sourceCard.className = 'source-card';
+                sourceCard.href = s.source;
+                sourceCard.target = '_blank';
+                sourceCard.rel = 'noopener noreferrer';
+                if (index >= 4) sourceCard.classList.add('hidden');
+
+                const favicon = `https://www.google.com/s2/favicons?domain=${s.domain}&sz=64`;
+                sourceCard.innerHTML = `
+                    <div class="source-card-content">
+                        <div class="source-meta">
+                            <img src="${favicon}" class="source-favicon" alt="" onerror="this.style.display='none'">
+                            <span class="source-domain">${s.domain}</span>
+                            <span class="source-num">${s.number}</span>
+                        </div>
+                        <div class="source-title">${s.title}</div>
+                    </div>`;
+                grid.appendChild(sourceCard);
+            });
+
+            if (sources.length > 4) {
+                const moreCard = document.createElement('div');
+                moreCard.className = 'source-card more-btn';
+                moreCard.innerHTML = `<div class="source-card-content"><div class="more-text">+${sources.length - 4} more</div></div>`;
+                moreCard.onclick = () => { grid.querySelectorAll('.source-card.hidden').forEach(el => el.classList.remove('hidden')); moreCard.remove(); };
+                grid.appendChild(moreCard);
+            }
+
+            container.appendChild(grid);
+            card.insertBefore(container, card.querySelector('.answer-row'));
+        }
+
+        // ─── Suggestion Click Handlers ──────────────────────────────────
+        document.getElementById('prompts-list').addEventListener('click', (e) => {
+            if (e.target.tagName === 'LI') {
+                textarea.value = e.target.textContent;
+                submitPrompt();
+            }
+        });
+
+        document.getElementById('biz-prompts-list').addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (li) {
+                textarea.value = li.dataset.query || li.textContent;
+                submitPrompt();
+            }
+        });
+
+        // ─── Init ───────────────────────────────────────────────────────
+        submitBtn.onclick = submitPrompt;
+        textarea.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitPrompt(); } };
+        renderHistorySidebar();
+        updateModeUI();
+    </script>
+</body>
+</html>
